@@ -90,14 +90,18 @@ function sai_havcap_evaluate_immediate_threats(hva_asset_list, cap_asset_list, t
 
         if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
             print("Checking threat against asset " .. v.name)
-            local mission_go = false
+            local threatened = false
 
             for k,v in ipairs(threatlist) do
                 local threat = VP_GetContact({guid=v.guid})
                 print("Checking " .. threat.name)
-                mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
-            end
-            table.insert(ret, mission_go) 
+                local is_threatened = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
+                -- Only one threat is needed to give threatened status
+                if (is_threatened == true) then
+                    threatened = true
+                end
+           end
+            table.insert(ret, threatened) 
         else
             table.insert(ret, false) 
             print("Skipping Non Airborne Unit")
@@ -166,8 +170,6 @@ for k,v in ipairs(hva_threat_counters) do
         print("Threat established! Dispatching units")
     end
 end
-
-
 
 mission_go = false
 mission_launched = false
