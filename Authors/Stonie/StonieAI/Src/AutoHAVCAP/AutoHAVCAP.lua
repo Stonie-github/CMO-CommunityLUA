@@ -128,8 +128,8 @@ local dispatch_size = 2 -- How many CAPs
 
 --------------------------------------------- ASSETS --------------------------------------
 -- Example of hardcoding
-HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="opfor" }, {name="SIGINT #4", side = "Opfor" }}
-CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}}
+local HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="opfor" }, {name="SIGINT #4", side = "Opfor" }}
+local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}}
 
 --------------------------------------------- SETUP ---------------------------------------
 local script_side = VP_GetSide({name=SIDENAME})
@@ -147,29 +147,39 @@ parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50, thre
 local threatened_assets = sai_havcap_evaluate_immediate_threats(HVALIST, CAPLIST, threatlist, parameters)
 print(threatened_assets)
 
--- Create global variable with threat counters
-if (hva_threat_counters == nil) then
-    print("Creating threat counters")
-    hva_threat_counters = {}
-    for k,v in ipairs(HVALIST) do
-        hva_threat_counters[k] = 0
+-- Creates mission threat counter for hva_asset_list, it will named after hva_threat_counter_global_name_string
+function sai_update_threat_counters(hva_asset_list, threatened_assets, hva_threat_counter_global_name_string)
+    local str = hva_threat_counter_global_name_string
+    -- Create global variable with threat counters
+    if (_G[str] == nil) then
+        print("Creating threat counters")
+        _G[str] = {}
+        for k,v in ipairs(hva_asset_list) do
+            _G[str][k] = 0
+        end
     end
-end
-print(hva_threat_counters)
+    --print(hva_threat_counters)
 
-for k,v in ipairs(threatened_assets) do
-    if(v) then
-        hva_threat_counters[k] = hva_threat_counters[k] + 1
-    else
-        hva_threat_counters[k] = 0
+    for k,v in ipairs(threatened_assets) do
+        if(v) then
+            _G[str][k] = _G[str][k] + 1
+        else
+            _G[str][k] = 0
+        end
     end
 end
 
-for k,v in ipairs(hva_threat_counters) do
-    if(v >= parameters.threat_persistence_trigger_count) then
-        print("Threat established! Dispatching units")
+sai_update_threat_counters(HVALIST, threatened_assets, "HVAmission1")
+sai_havcap_check_mission_go("HVAmission1", parameters)
+print(HVAmission1)
+
+function sai_havcap_check_mission_go(mission, parameters)
+    for k,v in ipairs(_G[mission]) do
+        if(v >= parameters.threat_persistence_trigger_count) then
+            print("Threat established! Dispatching units")
+        end
     end
-end
+end
 
 mission_go = false
 mission_launched = false
