@@ -90,6 +90,7 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name,param
         if(CAPUnit.readytime == '0') then -- Check if ready
             --Dispatch AC to mission
             ScenEdit_AssignUnitToMission(CAPUnit.name, mission_name)
+            CAPUnit.group = mission_name .. " intercept"
             dispatched = dispatched + 1
             print("Dispatching A/C to mission")
         end
@@ -201,17 +202,17 @@ function sai_havcap_restore_mission_vars(mission_var, parameters)
         end
         table.insert(_G[str].parameters, parameters)
     end
-   
 end
 
 -------------------- START OF SCRIPT --------------------------------------------------------
 SCRIPT_SIDE = "Opfor"
 --------------------------------------------- ASSETS --------------------------------------
 local HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="opfor" }, {name="SIGINT #4", side = "Opfor" }}
-local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}, {name = "Rusky #3", side="Opfor"}, {name = "Rusky #4", side="Opfor"}, {name = "Rusky #5", side="Opfor"}, {name = "Rusky #6", side="Opfor"}}
+local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}, {name = "Rusky #3", side="Opfor"}, {name = "Rusky #4", side="Opfor"}, {name = "Rusky #5", side="Opfor"}, {name = "Rusky #6", side="Opfor"}, {name = "Rusky #7", side="Opfor"}, {name = "Rusky #8", side="Opfor"}, {name = "Rusky #9", side="Opfor"}, {name = "Rusky #10", side="Opfor"}, {name = "Rusky #11", side="Opfor"}}
 local SCRIPT_MISSION = "HVAmission1" -- Must be unique!
 local ACTUAL_MISSION_NAME = "HAVCAP MISSION"
 --HVAmission1 = nil  -- Uncomment and run to reset mission status
+
 --------------------------------------------- CONFIG ---------------------------------------
 local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=60, threat_persistence_trigger_count=4, dispatch_size=2}
 
