@@ -1,11 +1,14 @@
 --Stonie's Command Mission AI suite : HAVCAP Response AI V0.1
 --This script will lunch a fighter squadron to protect high value assets when it estimates an incoming contact may threaten it.
 
--- Time for self to target at given speed and heading straight for it
+-- Time for Unit: self to reach Unit: target at the speed self is on as if it were heading straight for it
 function time_to_target(self, target)
     return Tool_Range(self.guid, target.guid) / self.speed
 end
 
+--Time for Unit: self to reach Unit: target at the speed self is on as if it were heading straight for it and a 
+--distance reduction of margin : NM was applied
+-- Example: time = time_to_target_with_margin(Unit, Unit, 10) 
 function time_to_target_with_margin(self, target, margin)
     --local time_to_target = time_to_target(self, target)
     --local time_margin_budget = 
@@ -17,6 +20,9 @@ function time_to_target_with_margin(self, target, margin)
     end
 end
 
+-- Give a true/false respsponse as to if the Unit: threat, can reach distance: NM, from Unit:hav_asset, within the
+-- time cap_time_to_area (Hours) + margin (Hours)
+-- Example:  bool = estimate_intercept_threat_vs_asset(Unit, Unit, 0.5, 0.1, 50)
 function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area, margin, distance )
         local threat_detected = false
         local threat_time_to_hva = time_to_target_with_margin(threat, hav_asset, distance)
@@ -48,6 +54,7 @@ function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area
         return false
 end
 
+-- Launch a HAVCAP mission with Unit: combat_ac, towards Unit:hva_ac, mission belongs to Side:script_side and mission name is a string
 function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name)
 
     -- Add a tracking reference point 1 mile in front of unit
@@ -66,8 +73,12 @@ end
 SIDENAME = "Opfor"
 PLAYERSIDE = "Bluefor"
 
+-- Initialition
 local threatlist = {}
-local threat_count = 0
+local threat_count = 0 
+
+-- Config
+local dispatch_size = 2 -- How many CAPs
 --mission_go = false
 --mission_launched = false
 
@@ -105,9 +116,6 @@ for k,v in ipairs(threatlist) do
         break
     end
 end
-
---print(mission_go)
---print(mission_launched)
 
 if ((mission_go == true) and ((mission_launched == false) or (mission_launched == nil))) then
     print("Launcing mission")
