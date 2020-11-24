@@ -106,15 +106,21 @@ end
 
 ---------------------------- EVALUATE THREATS ----------------------------
 
-local hav_unit = ScenEdit_GetUnit(HVALIST[1])
-for k,v in ipairs(threatlist) do
-    local threat = VP_GetContact({guid=threatlist[k].guid})
-    local int_mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, 0.11, 0.023, 50)
-    --print(int_mission_go)
-    if (int_mission_go == true) then
-        mission_go = true -- Set global
-        break
-    end
+-- Evaluate threats over both lists
+for k,v in ipairs(HVALIST) do
+	local hav_unit = ScenEdit_GetUnit(v)
+	print("Checking threat against asset " .. v.name)
+	for k,v in ipairs(threatlist) do
+		local threat = VP_GetContact({guid=v.guid})
+        print("Checking " .. threat.name)
+		local int_mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, 0.11, 0.023, 50)
+		--print(int_mission_go)
+		if (int_mission_go == true) then
+			mission_go = true -- Set global
+			break
+		end
+	end
+	
 end
 
 if ((mission_go == true) and ((mission_launched == false) or (mission_launched == nil))) then
