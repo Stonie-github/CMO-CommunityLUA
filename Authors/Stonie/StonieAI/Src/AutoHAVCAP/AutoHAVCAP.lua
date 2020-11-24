@@ -24,17 +24,16 @@ end
 -- time cap_time_to_area (Hours) + margin (Hours)
 -- Example:  bool = estimate_intercept_threat_vs_asset(Unit, Unit, 0.5, 0.1, 50)
 function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area, margin, distance )
-        local threat_detected = false
+
+        -- Prune contacts that are too far away to reach target within cap arrival time
         local threat_time_to_hva = time_to_target_with_margin(threat, hav_asset, distance)
-
-        -- How far can the threat go in the time it takes for CAP to arrive
-        local threat_coverage = (cap_time_to_area+margin)*threat.speed
-
         if ((cap_time_to_area - margin) > threat_time_to_hva) then
             --print("CAP will beat threat to area by " .. ((cap_time_to_area + margin)-threat_time_to_hva) .. " Hours")
             return false
         end
 
+        -- How far can the threat go in the time it takes for CAP to arrive
+        local threat_coverage = (cap_time_to_area+margin)*threat.speed
         local max_distance = math.ceil(threat_coverage)
         local interval = math.ceil(max_distance/10)
         for dist = 10,max_distance,interval do
@@ -80,6 +79,34 @@ function sai_populate_air_threat_list(table_to_populate, contact_list)
     return num_air_contacts
 end
 
+-- Check to see if mission should be launched, given the current list of high value assets hva_asset_list, cap_asset_list, threatlist with contacts 
+-- and parameters (launch_parameters) {Ex parameters cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50 }
+-- Returns a table of booleans over threatened assets with index corresponding to the hva list
+function sai_havcap_evaluate_immediate_threats(hva_asset_list, cap_asset_list, threatlist, launch_parameters)
+    local ret = {}
+    for k,v in ipairs(hva_asset_list) do
+
+        local hav_unit = ScenEdit_GetUnit(v)
+
+        if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
+            print("Checking threat against asset " .. v.name)
+            local mission_go = false
+
+            for k,v in ipairs(threatlist) do
+                local threat = VP_GetContact({guid=v.guid})
+                print("Checking " .. threat.name)
+                mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
+            end
+            table.insert(ret, mission_go) 
+        else
+            table.insert(ret, false) 
+            print("Skipping Non Airborne Unit")
+        end
+    end
+
+    return ret
+end
+
 -------------------- START OF SCRIPT --------------------------------------------------------
 
 SIDENAME = "Opfor"
@@ -111,60 +138,36 @@ print("Found " .. threat_count .. " threats")
 
 ---------------------------- EVALUATE THREATS ----------------------------
 
-parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50 }
+parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50, threat_persistence_trigger_count=4}
 
--- Check to see if mission should be launched, given the current list of high value assets hva_asset_list, cap_asset_list, threatlist with contacts 
--- and parameters (launch_parameters) {Ex parameters cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50 }
--- Returns a table of booleans over threatened assets with index corresponding to the hva list
-function sai_havcap_evaluate_immediate_threats(hva_asset_list, cap_asset_list, threatlist, launch_parameters)
-    local ret = {}
-    for k,v in ipairs(hva_asset_list) do
+local threatened_assets = sai_havcap_evaluate_immediate_threats(HVALIST, CAPLIST, threatlist, parameters)
+print(threatened_assets)
 
-        local hav_unit = ScenEdit_GetUnit(v)
-
-        if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
-            print("Checking threat against asset " .. v.name)
-            local mission_go = false
-
-            for k,v in ipairs(threatlist) do
-                local threat = VP_GetContact({guid=v.guid})
-                print("Checking " .. threat.name)
-                mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
-            end
-            table.insert(ret, mission_go) 
-        else
-            table.insert(ret, false) 
-            print("Skipping Non Airborne Unit")
-        end
-    end
-
-    return ret
-end
-
-test = sai_havcap_evaluate_immediate_threats(HVALIST, CAPLIST, threatlist, parameters)
-print(test)
-
--- Evaluate threats over both lists
-for k,v in ipairs(HVALIST) do
-
-	local hav_unit = ScenEdit_GetUnit(v)
-
-    if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
-        print("Checking threat against asset " .. v.name)
-        for k,v in ipairs(threatlist) do
-            local threat = VP_GetContact({guid=v.guid})
-            print("Checking " .. threat.name)
-            local int_mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, 0.11, 0.023, 50)
-            --print(int_mission_go)
-            if (int_mission_go == true) then
-                mission_go = true -- Set global
-                break
-            end
-        end
-    --else
-        --print("Skipping Non Airborne Unit")
+-- Create global variable with threat counters
+if (hva_threat_counters == nil) then
+    print("Creating threat counters")
+    hva_threat_counters = {}
+    for k,v in ipairs(HVALIST) do
+        hva_threat_counters[k] = 0
     end
 end
+print(hva_threat_counters)
+
+for k,v in ipairs(threatened_assets) do
+    if(v) then
+        hva_threat_counters[k] = hva_threat_counters[k] + 1
+    else
+        hva_threat_counters[k] = 0
+    end
+end
+
+for k,v in ipairs(hva_threat_counters) do
+    if(v >= parameters.threat_persistence_trigger_count) then
+        print("Threat established! Dispatching units")
+    end
+end
+
+
 
 mission_go = false
 mission_launched = false
