@@ -111,8 +111,42 @@ print("Found " .. threat_count .. " threats")
 
 ---------------------------- EVALUATE THREATS ----------------------------
 
+parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50 }
+
+-- Check to see if mission should be launched, given the current list of high value assets hva_asset_list, cap_asset_list, threatlist with contacts 
+-- and parameters (launch_parameters) {Ex parameters cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50 }
+-- Returns a table of booleans over threatened assets with index corresponding to the hva list
+function sai_havcap_evaluate_immediate_threats(hva_asset_list, cap_asset_list, threatlist, launch_parameters)
+    local ret = {}
+    for k,v in ipairs(hva_asset_list) do
+
+        local hav_unit = ScenEdit_GetUnit(v)
+
+        if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
+            print("Checking threat against asset " .. v.name)
+            local mission_go = false
+
+            for k,v in ipairs(threatlist) do
+                local threat = VP_GetContact({guid=v.guid})
+                print("Checking " .. threat.name)
+                mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
+            end
+            table.insert(ret, mission_go) 
+        else
+            table.insert(ret, false) 
+            print("Skipping Non Airborne Unit")
+        end
+    end
+
+    return ret
+end
+
+test = sai_havcap_evaluate_immediate_threats(HVALIST, CAPLIST, threatlist, parameters)
+print(test)
+
 -- Evaluate threats over both lists
 for k,v in ipairs(HVALIST) do
+
 	local hav_unit = ScenEdit_GetUnit(v)
 
     if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
@@ -131,6 +165,9 @@ for k,v in ipairs(HVALIST) do
         --print("Skipping Non Airborne Unit")
     end
 end
+
+mission_go = false
+mission_launched = false
 
 if ((mission_go == true) and ((mission_launched == false) or (mission_launched == nil))) then
     print("Launcing mission")
