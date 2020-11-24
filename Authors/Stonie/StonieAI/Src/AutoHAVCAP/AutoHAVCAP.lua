@@ -20,15 +20,32 @@ function time_to_target_with_margin(self, target, margin)
     end
 end
 
+function time_threat_to_defense_area(self, target, area_size)
+
+end
+
 -- Give a true/false respsponse as to if the Unit: threat, can reach distance: NM, from Unit:hav_asset, within the
 -- time cap_time_to_area (Hours) + margin (Hours)
 -- Example:  bool = estimate_intercept_threat_vs_asset(Unit, Unit, 0.5, 0.1, 50)
 function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area, margin, distance )
 
-        -- Prune contacts that are too far away to reach target within cap arrival time
-        local threat_time_to_hva = time_to_target_with_margin(threat, hav_asset, distance)
-        if ((cap_time_to_area - margin) > threat_time_to_hva) then
-            --print("CAP will beat threat to area by " .. ((cap_time_to_area + margin)-threat_time_to_hva) .. " Hours")
+        local threat_distance = Tool_Range(hav_asset.guid, threat.guid)
+
+        -- Calculate distance between defense area and threat
+        local distance_to_defense_area = threat_distance - distance
+
+        print("Threat distance to defense area " .. distance_to_defense_area)
+
+        -- Check if contact is already within threat area
+        if (distance_to_defense_area < 0) then -- Is threat within area already, uh oh!
+            return true
+        end
+
+        -- Calculate time to defense area for target and compare to time for CAP to arrive to target
+        -- if cap can arrive faster than target to defense area then no problem
+        threat_time_to_defense_area = distance_to_defense_area / threat.speed
+        if (threat_time_to_defense_area > (cap_time_to_area + margin)*1.1) then
+            print("CAP will beat threat to area by " .. ((cap_time_to_area + margin)-threat_time_to_defense_area) .. " Hours")
             return false
         end
 
@@ -36,13 +53,13 @@ function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area
         local threat_coverage = (cap_time_to_area+margin)*threat.speed
         local max_distance = math.ceil(threat_coverage)
         local interval = math.ceil(max_distance/10)
-        for dist = 10,max_distance,interval do
+        for dist = 1,8,1 do -- 8 * dist will be the maximum travel distance over cap_time_to_area+margin
             -- Create test point dist from threat bearing
-            local intercept = World_GetPointFromBearing({latitude=threat.latitude, longitude=threat.longitude, distance=dist, bearing=threat.heading})
+            local intercept = World_GetPointFromBearing({latitude=threat.latitude, longitude=threat.longitude, distance=dist*interval, bearing=threat.heading})
             -- Find distance from point to high value asset
             local point_distance = Tool_Range({ latitude=hav_asset.latitude, longitude=hav_asset.longitude},{ latitude=intercept.latitude, longitude=intercept.longitude })
             -- Debug to show points
-            --local intercept_point = ScenEdit_AddReferencePoint( {side=script_side.name, longitude=intercept.longitude, latitude=intercept.latitude, highlighted=true })
+            --local intercept_point = ScenEdit_AddReferencePoint( {side="Bluefor", longitude=intercept.longitude, latitude=intercept.latitude, highlighted=true })
             
             --print(point_distance)
             -- Check if distance is less than criteria
@@ -74,7 +91,7 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name,param
             --Dispatch AC to mission
             ScenEdit_AssignUnitToMission(CAPUnit.name, mission_name)
             dispatched = dispatched + 1
-            --print("Dispatching A/C to mission")
+            print("Dispatching A/C to mission")
         end
         
         loop_counter = loop_counter + 1
@@ -104,22 +121,23 @@ function sai_havcap_evaluate_immediate_threats(hva_asset_list, threatlist, launc
         local hav_unit = ScenEdit_GetUnit(v)
 
         if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
-            --print("Checking threat against asset " .. v.name)
+            print("Checking threat against asset " .. v.name)
             local threatened = false
 
             for k,v in ipairs(threatlist) do
                 local threat = VP_GetContact({guid=v.guid})
-                --print("Checking " .. threat.name)
+                print("Checking " .. threat.name)
                 local is_threatened = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
                 -- Only one threat is needed to give threatened status
                 if (is_threatened == true) then
                     threatened = true
+                    print(hav_unit.name .. " is threatened")
                 end
            end
             table.insert(ret, threatened) 
         else
             table.insert(ret, false) 
-            --print("Skipping non-airborne asset")
+            print("Skipping non-airborne asset")
         end
     end
 
@@ -132,7 +150,7 @@ function sai_update_threat_counters(hva_asset_list, threatened_assets, hva_threa
     local str = hva_threat_counter_global_name_string
     -- Create global variable with threat counters
     if (_G[str] == nil) then
-        --print("Creating threat counters")
+        print("Creating threat counters")
         _G[str] = {}
         for k,v in ipairs(hva_asset_list) do
             _G[str][k] = 0
@@ -154,7 +172,7 @@ end
 function sai_havcap_check_mission_go(mission, parameters)
     for k,v in ipairs(_G[mission]) do
         if(v >= parameters.threat_persistence_trigger_count) then
-            --print("Threat established!")
+            print("Threat established!")
             return true
         end
     end
@@ -176,7 +194,7 @@ function sai_havcap_restore_mission_vars(mission_var, parameters)
     local str = mission_var
     -- Create global variable with threat counters
     if (_G[str] == nil) then
-        --print("Creating threat counters")
+        print("Creating threat counters")
         _G[str] = {}
         for k,v in ipairs(hva_asset_list) do
             _G[str][k] = 0
@@ -195,10 +213,12 @@ local SCRIPT_MISSION = "HVAmission1" -- Must be unique!
 local ACTUAL_MISSION_NAME = "HAVCAP MISSION"
 --HVAmission1 = nil  -- Uncomment and run to reset mission status
 --------------------------------------------- CONFIG ---------------------------------------
-local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50, threat_persistence_trigger_count=4, dispatch_size=2}
+local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=60, threat_persistence_trigger_count=4, dispatch_size=2}
 
 --------------------------------------------- MAIN ---------------------------------
 local script_side = VP_GetSide({name=SCRIPT_SIDE})
+
+print("Running HAVCAP " .. SCRIPT_MISSION)
 
 -- Populate potential air threats
 local threatlist = {}
@@ -218,3 +238,5 @@ local mission_go = sai_havcap_check_mission_go(SCRIPT_MISSION, parameters)
 if (mission_go == true) then
     sai_dispatch_mission(CAPLIST, HVALIST, script_side, ACTUAL_MISSION_NAME,HVAmission1,parameters)
 end
+
+print(HVAmission1)
