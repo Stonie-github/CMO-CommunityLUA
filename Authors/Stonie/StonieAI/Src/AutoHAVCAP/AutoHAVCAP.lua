@@ -82,7 +82,7 @@ end
 -- Check to see if mission should be launched, given the current list of high value assets hva_asset_list, cap_asset_list, threatlist with contacts 
 -- and parameters (launch_parameters) {Ex parameters cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50 }
 -- Returns a table of booleans over threatened assets with index corresponding to the hva list
-function sai_havcap_evaluate_immediate_threats(hva_asset_list, cap_asset_list, threatlist, launch_parameters)
+function sai_havcap_evaluate_immediate_threats(hva_asset_list, threatlist, launch_parameters)
     local ret = {}
     for k,v in ipairs(hva_asset_list) do
 
@@ -111,43 +111,8 @@ function sai_havcap_evaluate_immediate_threats(hva_asset_list, cap_asset_list, t
     return ret
 end
 
--------------------- START OF SCRIPT --------------------------------------------------------
-
-SIDENAME = "Opfor"
-PLAYERSIDE = "Bluefor"
-
--- Initialition
-local threatlist = {}
-local threat_count = 0 
-
--- Config
-local dispatch_size = 2 -- How many CAPs
---mission_go = false
---mission_launched = false
-
-
---------------------------------------------- ASSETS --------------------------------------
--- Example of hardcoding
-local HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="opfor" }, {name="SIGINT #4", side = "Opfor" }}
-local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}}
-
---------------------------------------------- SETUP ---------------------------------------
-local script_side = VP_GetSide({name=SIDENAME})
-local opposing_side = VP_GetSide({name=PLAYERSIDE})
-local HAVCAP_MISSION_NAME = "HAVCAP Mission"
-
--- Populate potential air threats
-threat_count = sai_populate_air_threat_list(threatlist, script_side.contacts)
-print("Found " .. threat_count .. " threats")
-
----------------------------- EVALUATE THREATS ----------------------------
-
-parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50, threat_persistence_trigger_count=4}
-
-local threatened_assets = sai_havcap_evaluate_immediate_threats(HVALIST, CAPLIST, threatlist, parameters)
-print(threatened_assets)
-
--- Creates mission threat counter for hva_asset_list, it will named after hva_threat_counter_global_name_string
+-- Creates if needed but otherwise updates mission threat counter for hva_asset_list, global 
+-- containign results will be created named after hva_threat_counter_global_name_string
 function sai_update_threat_counters(hva_asset_list, threatened_assets, hva_threat_counter_global_name_string)
     local str = hva_threat_counter_global_name_string
     -- Create global variable with threat counters
@@ -169,25 +134,50 @@ function sai_update_threat_counters(hva_asset_list, threatened_assets, hva_threa
     end
 end
 
-sai_update_threat_counters(HVALIST, threatened_assets, "HVAmission1")
-sai_havcap_check_mission_go("HVAmission1", parameters)
-print(HVAmission1)
-
+-- Check for mission go and dispatch mission if so
 function sai_havcap_check_mission_go(mission, parameters)
     for k,v in ipairs(_G[mission]) do
         if(v >= parameters.threat_persistence_trigger_count) then
-            print("Threat established! Dispatching units")
+            print("Threat established!")
+            return true
         end
     end
-end
+end
 
-mission_go = false
-mission_launched = false
+-------------------- START OF SCRIPT --------------------------------------------------------
+SCRIPT_SIDE = "Opfor"
+--------------------------------------------- ASSETS --------------------------------------
+local HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="opfor" }, {name="SIGINT #4", side = "Opfor" }}
+local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}}
+local MISSION_NAME = "HVAmission1" -- Must be unique!
+
+--------------------------------------------- CONFIG ---------------------------------------
+local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=50, threat_persistence_trigger_count=4}
+
+--------------------------------------------- MAIN ---------------------------------
+local script_side = VP_GetSide({name=SCRIPT_SIDE})
+local dispatch_size = 2 -- How many CAPs
+
+-- Populate potential air threats
+local threatlist = {}
+local threat_count = sai_populate_air_threat_list(threatlist, script_side.contacts)
+--print("Found " .. threat_count .. " threats")
+
+-- Make a index of threatened assets in the hav list
+local threatened_assets = sai_havcap_evaluate_immediate_threats(HVALIST, threatlist, parameters)
+
+-- Update threat counters
+sai_update_threat_counters(HVALIST, threatened_assets, MISSION_NAME)
+
+-- Check for mission go
+local mission_go = sai_havcap_check_mission_go(MISSION_NAME, parameters)
+
+--print(HVAmission1)
 
 if ((mission_go == true) and ((mission_launched == false) or (mission_launched == nil))) then
     print("Launcing mission")
     mission_launched = true
-    lunch_havcap_mission(CAPLIST[2], HVALIST[1], script_side, HAVCAP_MISSION_NAME)
+    lunch_havcap_mission(CAPLIST[2], HVALIST[1], script_side, "HAVCAP MISSION")
 else
     print("No mission launched")
 end
