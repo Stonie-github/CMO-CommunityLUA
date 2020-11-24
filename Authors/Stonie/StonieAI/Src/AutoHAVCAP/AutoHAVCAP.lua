@@ -65,10 +65,22 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name)
     CAPUnit = ScenEdit_GetUnit(combat_ac)
     local script_mission = ScenEdit_AddMission(script_side.name,mission_name, 'patrol',{type='AAW', zone={havLocation.name}})
     local status = ScenEdit_AssignUnitToMission(CAPUnit.name, script_mission.name)
-
 end
 
--------------------- START OF SCRIPT
+-- Populate the table passed to this function with air contacts with contacts from side.contacts
+function sai_populate_air_threat_list(table_to_populate, contact_list)
+    local num_air_contacts = 0
+    for k,v in ipairs(contact_list) do
+        local contact = VP_GetContact({guid=v.guid})
+        if contact.type == 'Air' then
+            table.insert(table_to_populate, v)
+            num_air_contacts = num_air_contacts + 1
+        end
+    end
+    return num_air_contacts
+end
+
+-------------------- START OF SCRIPT --------------------------------------------------------
 
 SIDENAME = "Opfor"
 PLAYERSIDE = "Bluefor"
@@ -91,18 +103,11 @@ CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}}
 --------------------------------------------- SETUP ---------------------------------------
 local script_side = VP_GetSide({name=SIDENAME})
 local opposing_side = VP_GetSide({name=PLAYERSIDE})
-local CAPLIST_LOCATION = 0
 local HAVCAP_MISSION_NAME = "HAVCAP Mission"
 
----------------------------- CREATE THREATLIST ---------------------------
-local all_contacts = script_side.contacts
-for k,v in ipairs(all_contacts) do
-    local script_contact = VP_GetContact({guid=all_contacts[k].guid})
-    if script_contact.type == 'Air' then
-        table.insert(threatlist, v)
-        threat_count = threat_count + 1
-    end
-end
+-- Populate potential air threats
+threat_count = sai_populate_air_threat_list(threatlist, script_side.contacts)
+print("Found " .. threat_count .. " threats")
 
 ---------------------------- EVALUATE THREATS ----------------------------
 
@@ -120,7 +125,6 @@ for k,v in ipairs(HVALIST) do
 			break
 		end
 	end
-	
 end
 
 if ((mission_go == true) and ((mission_launched == false) or (mission_launched == nil))) then
