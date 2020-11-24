@@ -114,17 +114,22 @@ print("Found " .. threat_count .. " threats")
 -- Evaluate threats over both lists
 for k,v in ipairs(HVALIST) do
 	local hav_unit = ScenEdit_GetUnit(v)
-	print("Checking threat against asset " .. v.name)
-	for k,v in ipairs(threatlist) do
-		local threat = VP_GetContact({guid=v.guid})
-        print("Checking " .. threat.name)
-		local int_mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, 0.11, 0.023, 50)
-		--print(int_mission_go)
-		if (int_mission_go == true) then
-			mission_go = true -- Set global
-			break
-		end
-	end
+
+    if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
+        print("Checking threat against asset " .. v.name)
+        for k,v in ipairs(threatlist) do
+            local threat = VP_GetContact({guid=v.guid})
+            print("Checking " .. threat.name)
+            local int_mission_go = estimate_intercept_threat_vs_asset(threat, hav_unit, 0.11, 0.023, 50)
+            --print(int_mission_go)
+            if (int_mission_go == true) then
+                mission_go = true -- Set global
+                break
+            end
+        end
+    --else
+        --print("Skipping Non Airborne Unit")
+    end
 end
 
 if ((mission_go == true) and ((mission_launched == false) or (mission_launched == nil))) then
