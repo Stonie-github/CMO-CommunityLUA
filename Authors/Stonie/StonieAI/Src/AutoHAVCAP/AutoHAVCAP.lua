@@ -32,6 +32,7 @@ end
 function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area, margin, distance )
 
         local threat_distance = Tool_Range(hav_asset.guid, threat.guid)
+        --print(threat_distance)
 
         -- Calculate distance between defense area and threat
         local distance_to_defense_area = threat_distance - distance
@@ -39,10 +40,16 @@ function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area
         --print("Threat distance to defense area " .. distance_to_defense_area)
 
         -- Check if contact is already within threat area
-        if (distance_to_defense_area < 0) then -- Is threat within area already, uh oh!
+        if (distance_to_defense_area < 0) then -- Is threat within area already, uh oh! Lets mark as threat even if we dont know a lot about it
             return true
         end
 
+        -- Evaluate how much we know about the contact, i.e speed and heading. If we dont lets ignore it on the ground we dont know enough
+        if ((threat.speed == nil) or (threat.heading == nil)) then
+            --print("Ignoring boogie with low certaintity")
+            return false
+        end
+        
         -- Calculate time to defense area for target and compare to time for CAP to arrive to target
         -- if cap can arrive faster than target to defense area then no problem
         threat_time_to_defense_area = distance_to_defense_area / threat.speed
@@ -224,6 +231,7 @@ function sai_havcap_restore_mission_vars(mission_var, parameters)
         table.insert(_G[str].parameters, parameters)
     end
 end
+
 
 -------------------- START OF SCRIPT --------------------------------------------------------
 SCRIPT_SIDE = "Opfor" -- The side owning the assets the script manages
