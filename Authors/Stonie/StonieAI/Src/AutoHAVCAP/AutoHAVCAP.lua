@@ -94,7 +94,7 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name, miss
     
     if (script_mission ~= nil) then
         mission_var.mission = script_mission
-        print("Mission exists")
+        --print("Mission exists")
            --print(mission_var.mission.unitlist) -- Later we can use this to repopulate missions if they have no units assigned
         return 
     end
@@ -153,12 +153,12 @@ function sai_havcap_evaluate_immediate_threats(hva_asset_list, threatlist, launc
 
             for k,v in ipairs(threatlist) do
                 local threat = VP_GetContact({guid=v.guid})
-                print("Checking " .. threat.name)
+                --print("Checking " .. threat.name)
                 local is_threatened = estimate_intercept_threat_vs_asset(threat, hav_unit, launch_parameters.cap_time_to_hav, launch_parameters.cap_time_margin, launch_parameters.threat_zone)
                 -- Only one threat is needed to give threatened status
                 if (is_threatened == true) then
                     threatened = true
-                    print(hav_unit.name .. " is threatened")
+                    --print(hav_unit.name .. " is threatened")
                 end
            end
             table.insert(ret, threatened) 
@@ -216,7 +216,7 @@ function sai_havcap_restore_mission_vars(mission_var, parameters)
     local str = mission_var
     -- Create global variable with threat counters
     if (_G[str] == nil) then
-        print("Creating threat counters")
+        --print("Creating threat counters")
         _G[str] = {}
         for k,v in ipairs(hva_asset_list) do
             _G[str][k] = 0
@@ -263,5 +263,3 @@ sai_update_threat_counters(HVALIST, threatened_assets, SCRIPT_MISSION_VAR)
 
 -- Check for mission go, use the mission variable directly instead of string here now that it has been created
 local mission_go = sai_havcap_mission_dispatch(CAPLIST, HVALIST, script_side, ACTUAL_MISSION_NAME,HVAmission1, parameters)
-
---print(HVAmission1) -- If you want to see threat counters uncommment this
