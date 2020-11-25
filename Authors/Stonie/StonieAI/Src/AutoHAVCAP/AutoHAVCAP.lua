@@ -36,7 +36,7 @@ function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area
         -- Calculate distance between defense area and threat
         local distance_to_defense_area = threat_distance - distance
 
-        print("Threat distance to defense area " .. distance_to_defense_area)
+        --print("Threat distance to defense area " .. distance_to_defense_area)
 
         -- Check if contact is already within threat area
         if (distance_to_defense_area < 0) then -- Is threat within area already, uh oh!
@@ -47,7 +47,7 @@ function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area
         -- if cap can arrive faster than target to defense area then no problem
         threat_time_to_defense_area = distance_to_defense_area / threat.speed
         if (threat_time_to_defense_area > (cap_time_to_area + margin)*1.1) then
-            print("CAP will beat threat to area by " .. ((cap_time_to_area + margin)-threat_time_to_defense_area) .. " Hours")
+            --print("CAP will beat threat to area by " .. ((cap_time_to_area + margin)-threat_time_to_defense_area) .. " Hours")
             return false
         end
 
@@ -86,7 +86,7 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name, miss
     end
     if (mission_var.mission == nil) then -- Check for 'forgotten mission'
         
-        print("Check for existing mission")
+        --print("Check for existing mission")
         Tool_EmulateNoConsole(true)
         local script_mission = ScenEdit_GetMission(script_side.name, mission_name)
         Tool_EmulateNoConsole(false)
@@ -118,7 +118,7 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name, miss
             ScenEdit_AssignUnitToMission(CAPUnit.name, mission_name)
             CAPUnit.group = mission_name .. " intercept"
             dispatched = dispatched + 1
-            print("Dispatching A/C to mission")
+            --print("Dispatching A/C to mission")
         end
         
         loop_counter = loop_counter + 1
@@ -199,7 +199,13 @@ end
 function sai_havcap_mission_dispatch(CAPLIST, HVALIST, script_side, actual_mission_name, mission_var, parameters)
     for k,v in ipairs(mission_var) do
         if(v >= parameters.threat_persistence_trigger_count) then
-            lunch_havcap_mission(CAPLIST, HVALIST[k], script_side, actual_mission_name, mission_var, parameters)
+            -- Only lunch missions for airborne units
+            HVAUnit = ScenEdit_GetUnit(HVALIST[k])
+            if (HVAUnit.condition == 'Airborne') then  -- Skip flights that are not airborne
+                lunch_havcap_mission(CAPLIST, HVALIST[k], script_side, actual_mission_name, mission_var, parameters)
+            else
+                v = 0   -- Set threat count to 0 if non airborne threatened hva ends up here for some reason
+            end
             return true
         end
     end
