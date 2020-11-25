@@ -195,19 +195,14 @@ function sai_update_threat_counters(hva_asset_list, threatened_assets, hva_threa
     end
 end
 
--- Check for mission go and dispatch mission if so
-function sai_havcap_check_mission_go(mission, parameters)
-    for k,v in ipairs(mission) do
+-- Check for mission go and dispatch mission if so. Will launch cap to the first persistently threated hva found, its not very intelligent yet
+function sai_havcap_mission_dispatch(CAPLIST, HVALIST, script_side, actual_mission_name, mission_var, parameters)
+    for k,v in ipairs(mission_var) do
         if(v >= parameters.threat_persistence_trigger_count) then
-            --print("Threat established!")
+            lunch_havcap_mission(CAPLIST, HVALIST[k], script_side, actual_mission_name, mission_var, parameters)
             return true
         end
     end
-end
-
--- Dispatch a mission to defend a asset
-function sai_dispatch_mission(CAPLIST, HVALIST, script_side, actual_mission_name, mission_var, parameters)
-        lunch_havcap_mission(CAPLIST, HVALIST[1], script_side, actual_mission_name, mission_var, parameters) -- FIX selection of HVA to laucn
 end
 
 -- Create mission variables if they dont exist NOT USED ATM
@@ -261,11 +256,6 @@ local threatened_assets = sai_havcap_evaluate_immediate_threats(HVALIST, threatl
 sai_update_threat_counters(HVALIST, threatened_assets, SCRIPT_MISSION_VAR)
 
 -- Check for mission go, use the mission variable directly instead of string here now that it has been created
-local mission_go = sai_havcap_check_mission_go(HVAmission1, parameters)
-
--- Dispatch mission if mission is go
-if (mission_go == true) then
-    sai_dispatch_mission(CAPLIST, HVALIST, script_side, ACTUAL_MISSION_NAME,HVAmission1,parameters)
-end
+local mission_go = sai_havcap_mission_dispatch(CAPLIST, HVALIST, script_side, ACTUAL_MISSION_NAME,HVAmission1, parameters)
 
 --print(HVAmission1) -- If you want to see threat counters uncommment this
