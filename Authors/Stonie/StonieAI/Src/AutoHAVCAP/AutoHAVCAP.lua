@@ -84,26 +84,19 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name, miss
     local HAVUnit = ScenEdit_GetUnit(hva_ac)
 
     -- Check for existing mission
-    if (mission_var.mission ~= nil) then
-        if(mission_var.mission.name == mission_name) then
-            print("Mission exists")
-            --print(mission_var.mission.unitlist) -- Later we can use this to repopulate missions if they have no units assigned
-            return -- Already exists
-        end
-    end
-    if (mission_var.mission == nil) then -- Check for 'forgotten mission'
-        
-        --print("Check for existing mission")
-        Tool_EmulateNoConsole(true)
-        local script_mission = ScenEdit_GetMission(script_side.name, mission_name)
-        Tool_EmulateNoConsole(false)
+    Tool_EmulateNoConsole(true)
+    local script_mission = ScenEdit_GetMission(script_side.name, mission_name)
+    Tool_EmulateNoConsole(false)
 
-        if (script_mission ~= nil) then -- Mission found, recover knowledge of it
-            mission_var.mission = script_mission
-            mission_var.mission_launched = true
-            print("Found existing mission, recovering")
-            return -- Already exists and information is recovered
-        end
+    if (script_mission == nil) then
+        mission_var.mission = nil
+    end
+    
+    if (script_mission ~= nil) then
+        mission_var.mission = script_mission
+        print("Mission exists")
+           --print(mission_var.mission.unitlist) -- Later we can use this to repopulate missions if they have no units assigned
+        return 
     end
 
     -- Add a tracking reference point 1 mile in front of unit
@@ -231,7 +224,6 @@ function sai_havcap_restore_mission_vars(mission_var, parameters)
         table.insert(_G[str].parameters, parameters)
     end
 end
-
 
 -------------------- START OF SCRIPT --------------------------------------------------------
 SCRIPT_SIDE = "Opfor" -- The side owning the assets the script manages
