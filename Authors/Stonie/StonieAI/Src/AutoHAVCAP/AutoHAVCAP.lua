@@ -20,11 +20,13 @@ function time_to_target_with_margin(self, target, margin)
     end
 end
 
+-- Time for Unit:threat to circular area of radii area_size : NM around Unit:target
 function time_threat_to_defense_area(self, target, area_size)
-
+    local threat_distance = Tool_Range(hav_asset.guid, threat.guid)
+    return (threat_distance-area_size)/threat.speed
 end
 
--- Give a true/false respsponse as to if the Unit: threat, can reach distance: NM, from Unit:hav_asset, within the
+-- Give a true/false respsponse as to if the Unit:threat, can reach distance: NM, from Unit:hav_asset, within the
 -- time cap_time_to_area (Hours) + margin (Hours)
 -- Example:  bool = estimate_intercept_threat_vs_asset(Unit, Unit, 0.5, 0.1, 50)
 function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area, margin, distance )
@@ -171,7 +173,7 @@ end
 
 -- Check for mission go and dispatch mission if so
 function sai_havcap_check_mission_go(mission, parameters)
-    for k,v in ipairs(_G[mission]) do
+    for k,v in ipairs(mission) do
         if(v >= parameters.threat_persistence_trigger_count) then
             print("Threat established!")
             return true
@@ -205,39 +207,45 @@ function sai_havcap_restore_mission_vars(mission_var, parameters)
 end
 
 -------------------- START OF SCRIPT --------------------------------------------------------
-SCRIPT_SIDE = "Opfor"
+SCRIPT_SIDE = "Opfor" -- The side owning the assets the script manages
 --------------------------------------------- ASSETS --------------------------------------
-local HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="opfor" }, {name="SIGINT #4", side = "Opfor" }}
-local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}, {name = "Rusky #3", side="Opfor"}, {name = "Rusky #4", side="Opfor"}, {name = "Rusky #5", side="Opfor"}, {name = "Rusky #6", side="Opfor"}, {name = "Rusky #7", side="Opfor"}, {name = "Rusky #8", side="Opfor"}, {name = "Rusky #9", side="Opfor"}, {name = "Rusky #10", side="Opfor"}, {name = "Rusky #11", side="Opfor"}}
-local SCRIPT_MISSION = "HVAmission1" -- Must be unique!
-local ACTUAL_MISSION_NAME = "HAVCAP MISSION"
---HVAmission1 = nil  -- Uncomment and run to reset mission status
-
+local HVALIST = { {name='SIGINT #1', side=SIDENAME}, {name="SIGINT #2", side="Opfor"}, { name="SIGINT #3", side="Opfor" }, {name="SIGINT #4", side = "Opfor" }}
+local CAPLIST = { {name="Rusky #1", side="Opfor"}, {name = "Rusky #2", side="Opfor"}, {name = "Rusky #3", side="Opfor"}, {name = "Rusky #4", side="Opfor"}, {name = "Rusky #5", side="Opfor"}, {name = "Rusky #6", side="Opfor"}, {name = "Rusky #7", side="Opfor"}, {name = "Rusky #8", side="Opfor"}, {name = "Rusky #9", side="Opfor"}, {name = "Rusky #10", side="Opfor"}, {name = "Rusky #11", side="Opfor"}, {name = "Rusky #12", side="Opfor"}}
+local SCRIPT_MISSION_VAR = "HVAmission1" -- Must be unique, script will create a global variable with the name of this string!
+local ACTUAL_MISSION_NAME = "HAVCAP MISSION" -- Name of the mission in the editor
 --------------------------------------------- CONFIG ---------------------------------------
-local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=60, threat_persistence_trigger_count=4, dispatch_size=2}
+-- Some config parameters passed into the function
+-- cap_time_to_hav is the estimated time in hours for combat a/c to reach the high value asset. Ballpark is distance from hva to combat aircraft base divided with the typical speed of the fighters
+-- cap_time_margin is extra "margin" added on top of this time. The decision to launch combat aircraft is made to try to get combat a/c to hva the margin before threat reaches the area within threat_zone miles of the high value asset
+-- threat_zone is the area which is considered threatening for a contact to be within before the combat aircraft arrive
+-- threat_persistence_trigger_count is how many times the script finds a threat threatening (heading towards the asset) before a mission is launched. If the script is triggered 4 times per minute and the trigger_count is 4 the asset must be
+--      threatened for a total of a minute before mission is launched, take this into account in the margin needed
+-- dispatch_size is how many available assets are recruited to the mission. Script will look for dispatch_size ready aircraft in the list.
+local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=60, threat_persistence_trigger_count=4, dispatch_size=4} 
 
 --------------------------------------------- MAIN ---------------------------------
 local script_side = VP_GetSide({name=SCRIPT_SIDE})
 
-print("Running HAVCAP " .. SCRIPT_MISSION)
+--HVAmission1 = nil  -- Uncomment and run to reset mission state
+
+print("Running HAVCAP " .. SCRIPT_MISSION_VAR)
 
 -- Populate potential air threats
 local threatlist = {}
 local threat_count = sai_populate_air_threat_list(threatlist, script_side.contacts)
---print("Found " .. threat_count .. " threats")
 
 -- Make a index of threatened assets in the hav list
 local threatened_assets = sai_havcap_evaluate_immediate_threats(HVALIST, threatlist, parameters)
 
--- Update threat counters
-sai_update_threat_counters(HVALIST, threatened_assets, SCRIPT_MISSION)
+-- Update threat counters, this function actually creates the global state variable if it does not exist.
+sai_update_threat_counters(HVALIST, threatened_assets, SCRIPT_MISSION_VAR)
 
--- Check for mission go
-local mission_go = sai_havcap_check_mission_go(SCRIPT_MISSION, parameters)
+-- Check for mission go, use the mission variable directly instead of string here now that it has been created
+local mission_go = sai_havcap_check_mission_go(HVAmission1, parameters)
 
---print(HVAmission1)
+-- Dispatch mission if mission is go
 if (mission_go == true) then
     sai_dispatch_mission(CAPLIST, HVALIST, script_side, ACTUAL_MISSION_NAME,HVAmission1,parameters)
 end
 
-print(HVAmission1)
+--print(HVAmission1) -- If you want to see threat counters uncommment this
