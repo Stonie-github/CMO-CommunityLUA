@@ -73,8 +73,31 @@ function estimate_intercept_threat_vs_asset (threat, hav_asset, cap_time_to_area
 end
 
 -- Launch a HAVCAP mission with Unit: combat_ac, towards Unit:hva_ac, mission belongs to Side:script_side and mission name is a string
-function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name,parameters)
+function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name, mission_var,parameters)
     local HAVUnit = ScenEdit_GetUnit(hva_ac)
+
+    -- Check for existing mission
+    if (mission_var.mission ~= nil) then
+        if(mission_var.mission.name == mission_name) then
+            print("Mission exists")
+            --print(mission_var.mission.unitlist) -- Later we can use this to repopulate missions if they have no units assigned
+            return -- Already exists
+        end
+    end
+    if (mission_var.mission == nil) then -- Check for 'forgotten mission'
+        
+        print("Check for existing mission")
+        Tool_EmulateNoConsole(true)
+        local script_mission = ScenEdit_GetMission(script_side.name, mission_name)
+        Tool_EmulateNoConsole(false)
+
+        if (script_mission ~= nil) then -- Mission found, recover knowledge of it
+            mission_var.mission = script_mission
+            mission_var.mission_launched = true
+            print("Found existing mission, recovering")
+            return -- Already exists and information is recovered
+        end
+    end
 
     -- Add a tracking reference point 1 mile in front of unit
     local havLocation = ScenEdit_AddReferencePoint( {side=script_side.name, RelativeTo=HAVUnit.name, bearingtype='rotating', bearing=HAVUnit.heading ,distance=5,clear=true })
@@ -83,6 +106,7 @@ function lunch_havcap_mission(combat_ac, hva_ac, script_side, mission_name,param
     local mission_config = { oneThirdRule=false, checkOPA=false, transitThrottleAircraft='Military', useFlightSize=false, attackDistanceAircraft=tostring(parameters.threat_zone) }
     local script_mission = ScenEdit_AddMission(script_side.name,mission_name, 'patrol',{type='AAW', zone={havLocation.name}})
     local script_mission = ScenEdit_SetMission(script_side.name,mission_name,mission_config)
+    mission_var.mission = script_mission
     
     local dispatched = 0
     local num_ac = #combat_ac
@@ -124,7 +148,7 @@ function sai_havcap_evaluate_immediate_threats(hva_asset_list, threatlist, launc
         local hav_unit = ScenEdit_GetUnit(v)
 
         if (hav_unit.condition == 'Airborne') then  -- Skip flights that are not airborne
-            print("Checking threat against asset " .. v.name)
+            --print("Checking threat against asset " .. v.name)
             local threatened = false
 
             for k,v in ipairs(threatlist) do
@@ -140,7 +164,7 @@ function sai_havcap_evaluate_immediate_threats(hva_asset_list, threatlist, launc
             table.insert(ret, threatened) 
         else
             table.insert(ret, false) 
-            print("Skipping non-airborne asset")
+            --print("Skipping non-airborne asset")
         end
     end
 
@@ -153,7 +177,7 @@ function sai_update_threat_counters(hva_asset_list, threatened_assets, hva_threa
     local str = hva_threat_counter_global_name_string
     -- Create global variable with threat counters
     if (_G[str] == nil) then
-        print("Creating threat counters")
+        --print("Creating threat counters")
         _G[str] = {}
         for k,v in ipairs(hva_asset_list) do
             _G[str][k] = 0
@@ -175,7 +199,7 @@ end
 function sai_havcap_check_mission_go(mission, parameters)
     for k,v in ipairs(mission) do
         if(v >= parameters.threat_persistence_trigger_count) then
-            print("Threat established!")
+            --print("Threat established!")
             return true
         end
     end
@@ -183,13 +207,7 @@ end
 
 -- Dispatch a mission to defend a asset
 function sai_dispatch_mission(CAPLIST, HVALIST, script_side, actual_mission_name, mission_var, parameters)
-    if ((mission_var.mission_launched == false) or (mission_var.mission_launched == nil)) then
-        print("Launcing mission")
-        lunch_havcap_mission(CAPLIST, HVALIST[1], script_side, actual_mission_name, parameters) -- FIX selection of HVA to laucn
-        mission_var.mission_launched = true
-    else
-        print("No mission launched")
-    end
+        lunch_havcap_mission(CAPLIST, HVALIST[1], script_side, actual_mission_name, mission_var, parameters) -- FIX selection of HVA to laucn
 end
 
 -- Create mission variables if they dont exist NOT USED ATM
@@ -227,6 +245,8 @@ local parameters = { cap_time_to_hav=0.11, cap_time_margin=0.023, threat_zone=60
 local script_side = VP_GetSide({name=SCRIPT_SIDE})
 
 --HVAmission1 = nil  -- Uncomment and run to reset mission state
+
+--print("HVAmission1.mission")
 
 print("Running HAVCAP " .. SCRIPT_MISSION_VAR)
 
